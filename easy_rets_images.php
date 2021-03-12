@@ -31,8 +31,8 @@ $base_thumbs_image_dir = $current_root_dir . 'thumbs/';
 $base_thumbs96_image_dir = $current_root_dir . 'thumbs96/';
 
 // this cookie file is abnormally important to the script working consistently so lets baby the hell out of it
-$cookie_fullpathandname = $current_root_dir . 'cookie.txt';
-echo "RETS_UPDATE_IMAGES_MRTU:  cookie file: $cookie_fullpathandname\n\n";
+//$cookie_fullpathandname = $current_root_dir . 'cookie.txt';
+//echo "RETS_UPDATE_IMAGES_MRTU:  cookie file: $cookie_fullpathandname\n\n";
 
 // set this to true to force image download from links (backdoor)
 $forceDl = false;
