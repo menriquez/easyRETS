@@ -1,0 +1,21 @@
+{
+    "name": "gsaulmon/guzzlerecorder",
+    "description": "Records and plays back guzzle responses",
+    "minimum-stability": "dev",
+    "license": "mit",
+    "authors": [
+        {
+            "name": "Geoff Saulmon",
+            "email": "saulmon@gmail.com"
+        }
+    ],
+    "require": {
+        "guzzlehttp/guzzle": "~6.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "4.1.*"
+    },
+    "autoload": {
+        "psr-4": {"Gsaulmon\\GuzzleRecorder\\": "src"}
+    }
+}
