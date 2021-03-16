@@ -383,7 +383,7 @@ function get_images($listing_id, $photo_count, $rets_key, $rets_object, $r, $ret
         }
     }
 
-	updateMasterRets($listing_id);
+	//updateMasterRets($listing_id);
 
     return true;
 
