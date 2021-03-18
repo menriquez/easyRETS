@@ -4,8 +4,8 @@ date_default_timezone_set("America/Los_Angeles");
 error_reporting(E_ERROR + E_WARNING);
 
 require_once("PHRETS/vendor/autoload.php");
-require_once ("config/config_all.php");
-require_once ("config/config_images.php");
+require_once("config/config_all.php");
+require_once("config/config_images.php");
 
 global $configDB;
 
@@ -13,10 +13,9 @@ echo "Connecting to database..";
 $conn=mysqli_connect($configDB['DB_HOST'], $configDB['DB_USER'], $configDB['DB_PASS'], $configDB['DB_NAME']) or die(mysqli_error());
 if ($conn) echo "db ".$configDB['DB_HOST'].":".$configDB['DB_NAME']." CONNECT OK\n\n";
 
-
 $send_notification_email=false;
 
-$jpeg_compress = 55;
+$jpeg_compress = 75;
 
 $current_root_dir = __DIR__ . "/";
 
@@ -27,6 +26,7 @@ if (isset($argv[1]) && is_string($argv[1])) $listing_id = $argv[1];
 // default image dir
 $base_photo_image_dir = $current_root_dir . 'photos/';
 $base_hires_image_dir = $current_root_dir . 'hires/';
+
 $base_thumbs_image_dir = $current_root_dir . 'thumbs/';
 $base_thumbs96_image_dir = $current_root_dir . 'thumbs96/';
 
@@ -36,9 +36,6 @@ $base_thumbs96_image_dir = $current_root_dir . 'thumbs96/';
 
 // set this to true to force image download from links (backdoor)
 $forceDl = false;
-
-// set this to true to pull HiRes image download from server
-$hiRes = false;
 
 // set this to true to force HiRes image download from links (backdoor)  
 // NOT USED YET - marke
@@ -77,12 +74,11 @@ foreach ($rets_config as $key => $config) {
         // mail();
     }
 
-
+    //  heavy lifting done in 3.....2....
     begin_image_update($rets, $key, $config);
 
-
     if ($send_notification_email) {
-        // if we want to send someone who cares an email saying we ended the image download
+        // if we want to send someone who we email saying we ended the image download
         // mail();
     }
 }
@@ -122,7 +118,6 @@ function begin_image_update($rets_object, $rets_name, $rets_config) {
     echo "TOTAL PROPS TO GET IMAGES: $totRows\n";
     $curRow = 0;
 
-
     // get images
     if ($totRows > 0) {
 
@@ -143,7 +138,8 @@ function begin_image_update($rets_object, $rets_name, $rets_config) {
         while ($row = mysqli_fetch_assoc($rets_results)) {
 
             if ($first) {
-                // we need to store the exact phototime of the newest record of this set bcuz we need it for the next set
+
+                // we need to store the exact photo time of the newest record of this set bcuz we need it for the next set
                 $end_db_ts = $row[$photo_modification_datetime_keyfield];
                 $end_mlsid = $row[$mls_id_keyfield];
                 $end_sysid = $row[$unique_id_keyfield];
@@ -170,9 +166,9 @@ function begin_image_update($rets_object, $rets_name, $rets_config) {
 	        }
 
             // keep updating the "last" vars bcuz at the end it will represent the newest one
-            $last_is_first_import_ts = $row['photo_timestamp'];
-            $start_mlsid = $row['listing_id'];
-            $start_sysid = $row['sysid'];
+            $last_is_first_import_ts = $row[$photo_modification_datetime_keyfield];
+            $start_mlsid = $row[$mls_id_keyfield];
+            $start_sysid = $row[$unique_id_keyfield];
 
         }
         //  END IMAGE IMPORT LOOP --------------------------------------------------------------------------------
@@ -198,7 +194,7 @@ function begin_image_update($rets_object, $rets_name, $rets_config) {
         $endUpdate = mysqli_query($conn, $sql);
         if (!$endUpdate) {
 	        echo "ERROR!\n\n\n";
-            throw new Exception("rets_update_images_mrtu.php - unable to update end time record...SQL = $sql ");
+            throw new Exception("easy_rets_images.php - unable to update end time record...SQL = $sql ");
         } else {
         	echo "OK!\n\n\n";
             $endTime = date("Y-m-d H:i:s");
@@ -206,7 +202,7 @@ function begin_image_update($rets_object, $rets_name, $rets_config) {
         }
     }
 
-    echo "Ending master_rets_table_update for $rets_name image download [$totRows DLed]" . PHP_EOL;
+    echo "Ending easy_rets_images for $rets_name image download [$totRows DLed]" . PHP_EOL;
 } //end begin_rets()
 
 
@@ -226,164 +222,128 @@ function get_images($listing_id, $photo_count, $rets_key, $rets_object, $r, $ret
     global $base_photo_image_dir, $base_hires_image_dir, $base_photo_jpeg_dir, $hiRes;
     global $diskspace_saved;
     global $jpeg_compress;
+    global $image_resolution_setting,$irs_index,$irs_images_or_links;
+
+    $current_image_reso = $image_resolution_setting[$irs_index];
 
     // Image Directory
     /* $dir = $base_image.$rets_config['image_directory'].$listing_id.'/'; */
-    if (!$hiRes)
-        $dir = $base_photo_image_dir;
-    else
-        $dir = $base_hires_image_dir;
+    $dir = $base_hires_image_dir;
 
     // Check for image and create directory if needed
     if (!file_exists($dir)) {
 
         echo "Creating DIR $dir " . PHP_EOL;
 
-        if (!mkdir($dir, 0777, true)) {
-            throw new Exception("RETS_UPDATE_IMAGES.PHP - Fatel Error::Cannot Create Directory $dir...terminating.");
+        if (!mkdir($dir, 0755, true)) {
+            throw new Exception("easy_rets_images.php -] Fatal Error::Cannot Create Directory [ $dir ]...terminating.");
         } else {
-            @exec("chmod 777 $dir");
-            echo "Successfully created $dir " . PHP_EOL;
+            @exec("chmod 755 $dir");
+            echo "Successfully created [ $dir ]" . PHP_EOL;
         }
     } //!file_exists($dir)
 
-    // debug stuff...
-    echo "Getting Photo Objects for Listing ID $listing_id " . PHP_EOL;
+    // grab the RETS photo object depending on the user settings
+    echo "Getting Photo Objects for PROPERTY [ $listing_id ]... " . PHP_EOL;
 
-
-    if (!$hiRes) {
-        // gather all possible photo objects for later processing...
-        $photos = $rets_object->GetObject('Property', "LargePhoto", (string)$rets_key, "*", 0);
-        // ..and get "backdoor" links in case we need to force downloads
-        // $photosLinks = $rets_object->GetObject('Property', "LargePhoto", (string) $rets_key,"* /** @lang text */
-
-    }
-
-    if ($hiRes) {
-
-        $photos[0]['Success'] = false;
-        $photosLinks = $rets_object->GetObject('Property', "hires", $rets_key, "*", 1);
-    }
+    // this should almost surely be wrapped in a try->catch() but...oh well
+    $photo_objects = $rets_object->GetObject('Property', $current_image_reso, (string)$rets_key, "*", $irs_images_or_links);
 
     $write_error = false;
     $image_count = 0;
 
-    echo "START Getting New Images..." . PHP_EOL;
+    $photo_count = $photo_objects->count();
 
-    // even if we are "forcing" download, double check the photo array
-    if ($GLOBALS['forceDl']) {
+    echo "Getting New Images [ $photo_count ]..." . PHP_EOL;
 
-        // check photo array for the data
-        if (!$photos[0]['Success']) {
+    $results = $photo_objects->toArray();
 
-            // clean up images
-            delete_images($rets_key);
+    // this will be "true" or 1 for links...
+    if ($irs_images_or_links) {
 
-            // nope...so hit the backdoor links
-            foreach ($photosLinks as $photoLink) {
+        // clean up images
+        delete_images($rets_key);
 
-                // get photo data from link and build filename
-                $picData = file_get_contents($photoLink['Location']);
-	            $image_res = imagecreatefromstring($picData);
+        // nope...so hit the backdoor links'
+        foreach ($results as $link) {
+
+            /* commented out this code because its not needed but there is A LOT you can learn from this particular
+                 chunk of code...   me 3/17/21
+
+                get photo data from link and build filename
+            $picData = file_get_contents($photoLink['Location']);
+            $image_res = imagecreatefromstring($picData);
+            $width = imagesx($image_res);
+            $height = imagesy($image_res);
+
+             $raw_fn = build_seo_filenames($r,$photoLink['Object-ID']);
+             $pic_fn = $base_photo_image_dir . $raw_fn;
+
+             if (imagejpeg($image_res,$pic_fn,$jpeg_compress)==false) {
+
+                // barf...
+                echo "Could not write the file " . $pic_fn . "<br>" . PHP_EOL;
+                $write_error = true;
+                break;
+            } else {
+
+                // throw a party...we successfully saved a image!
+                $image_count++;
+                echo "FL writing image " . $raw_fn . " [ $width x $height ]... Ok" . PHP_EOL;
+
+                // so take it next level and create thumbs as well
+                //stampThumb($listing_id . '-' . $photoLink['Object-ID'] . '.jpg',400);
+
+            }
+
+            */
+
+            // since im not at all a fan of putting external links on a website, all im going to provide is a dump
+            // of the remote links...
+            //
+            //  todo: in order to use them in a website, you would of course store these links into a database table
+            //        with a unique key and access and display them where needed.
+
+            echo $link."\n\n";
+
+        }
+
+
+    } else {
+
+        // we got the photos in the array..w00t
+        foreach ($results as $photo) {
+
+            //foreach ($photo as $field => $value)
+            {
+
+                //$raw_fn = build_seo_filenames($r,$photo['object_id']);
+                $raw_fn = $listing_id . '-' . $photo->getObjectId() . '.jpg';
+                $pic_fn = $dir . $raw_fn;
+
+                $image_res = imagecreatefromstring($photo->getContent());
                 $width = imagesx($image_res);
                 $height = imagesy($image_res);
 
-                 $raw_fn = build_seo_filenames($r,$photoLink['Object-ID']);
-                 $pic_fn = $base_photo_image_dir . $raw_fn;
-
-	             if (imagejpeg($image_res,$pic_fn,$jpeg_compress)==false) {
-                    // barf...
-                    echo "Could not write the file " . $pic_fn . "<br>" . PHP_EOL;
-                    $write_error = true;
-                    break;
-                } else {
-
-                    // throw a party...we successfully saved a image!
-                    $image_count++;
-                    echo "FL writing image " . $raw_fn . " [ $width x $height ]... Ok" . PHP_EOL;
-
-                    // so take it next level and create thumbs as well
-                    //stampThumb($listing_id . '-' . $photoLink['Object-ID'] . '.jpg',400);
-
-                }
-
             }
 
-            $totPhotos = count($photosLinks);
+            if (imagejpeg($image_res,$pic_fn,$jpeg_compress)==false) {
 
-            if ($image_count == $totPhotos) {
-
-                echo "FORCED LINK image DL count ok [$image_count]...updating database for listing_id $listing_id..." . PHP_EOL;
-
-                // not using this method anymore...using timestamp stuff - me
-                // $update_photo_update = mysql_query("UPDATE `master_rets_table` SET `photo_update` = 1 WHERE `listing_id` = '$listing_id' AND `rets_system` = '{$rets_config['name']}' ") or die(mysql_error());
+                echo "Could not write the file " . $raw_fn . PHP_EOL;
+                $write_error = true;
+                break;
 
             } else {
-                echo "FORCED LINK image DL count FAIL for listing_id $listing_id [$image_count] not equal [$totPhotos]" . PHP_EOL;
-            }
 
-        } else {
+                $image_count++;
+                echo "FP writing image " . $raw_fn . "  [ $width x $height ]...Ok" . PHP_EOL;
+                //stampThumb($listing_id . '-' . $photoLink['Object-ID'] . '.jpg',400);
 
-            // we got the photos in the array..w00t
-            foreach ($photos as $photo) {
-
-            	$raw_fn = build_seo_filenames($r,$photo['Object-ID']);
-	            $pic_fn = $base_photo_image_dir . $raw_fn;
-
-                $image_res = imagecreatefromstring($photo['Data']);
-                $width = imagesx($image_res);
-                $height = imagesy($image_res);
-
-				if (imagejpeg($image_res,$pic_fn,$jpeg_compress)==false) {
-
-                // if (file_put_contents($picFname, $photo['Data']) == false) {
-
-                    echo "Could not write the file " . $raw_fn . PHP_EOL;
-                    $write_error = true;
-                    break;
-
-                } else {
-
-                    $image_count++;
-                    echo "FP writing image " . $raw_fn . "  [ $width x $height ]...Ok" . PHP_EOL;
-                    //stampThumb($listing_id . '-' . $photoLink['Object-ID'] . '.jpg',400);
-
-                }
-
-            }
-
-            $totPhotos = count($photos);
-            if ($image_count == $totPhotos) {
-                echo "FORCED PHOTO images DL $listing_id count [$image_count] OK ..." . PHP_EOL;
-                // not using this method anymore...using timestamp stuff - me
-                // $update_photo_update = mysql_query("UPDATE `master_rets_table` SET `photo_update` = 1 WHERE `listing_id` = '$listing_id' AND `rets_system` = '{$rets_config['name']}' ") or die(mysql_error());
-            } else {
-                echo "FORCED PHOTO image DL count FAIL for listing_id $listing_id [$image_count] not equal [$totPhotos]" . PHP_EOL;
             }
 
         }
-    } // ok...not forcing download so all we do is check photo array.
-    else {
 
-        foreach ($photos as $photo) {
-
-	        $jpeg_res=imagecreatefromstring($photo->getContent());
-
-            $image_count++;
-
-	        $raw_fn = $listing_id."-".$photo->getObjectId().".jpg";
-	        $pic_fn = $base_photo_image_dir . $raw_fn;
-
-	        // webp it here
-	        if (imagejpeg($jpeg_res,$pic_fn,$jpeg_compress)==false) {
-		        echo "Could not write the file [ " . $raw_fn . " ] Skipping...".PHP_EOL;
-	        } else {
-		        echo "Writing BASE image [ " . $raw_fn . " ] Ok" . PHP_EOL;
-	        }
-        }
     }
-
-	//updateMasterRets($listing_id);
 
     return true;
 
