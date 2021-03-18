@@ -89,7 +89,7 @@ foreach ($rets_config as $key => $config) {
                     $results = $search_query->toArray();
                     foreach ($results as $listing) {
 
-                        // Build Query
+                        // build the query
                         $query = 'INSERT INTO ' . $rets_property_tablename . ' SET';
 
                         // Loop through fields/data
@@ -103,7 +103,7 @@ foreach ($rets_config as $key => $config) {
                             $query .= ' `' . stripslashes($field_name) . '` = \'' . mysqli_real_escape_string($conn, $value) . '\',';
                         }
 
-                        // Finsih Building Query
+                        // clean up query
                         $query = rtrim($query, ',');
                         $query .= ';';
 
