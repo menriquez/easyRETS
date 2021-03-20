@@ -1,9 +1,14 @@
 <?php
 set_time_limit(0);
-date_default_timezone_set("America/Los_Angeles");
+date_default_timezone_set("America/Lo\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\s_Angeles");
 error_reporting(E_ERROR + E_WARNING);
+//error_reporting(E_ALL);   // debug setting
 
 require_once("PHRETS/vendor/autoload.php");
+
+$current_root_dir = __DIR__ . "/";
+
+// todo: review config file contents and update info as required
 require_once("config/config_all.php");
 require_once("config/config_images.php");
 
@@ -17,29 +22,17 @@ $send_notification_email=false;
 
 $jpeg_compress = 75;
 
-$current_root_dir = __DIR__ . "/";
-
 if (isset($argv[1]) && is_numeric($argv[1])) $instance_id=$argv[1];
 if (isset($argv[2]) && is_numeric($argv[2])) $instance_tot=$argv[2];
 if (isset($argv[1]) && is_string($argv[1])) $listing_id = $argv[1];
 
-// default image dir
-$base_photo_image_dir = $current_root_dir . 'photos/';
-$base_hires_image_dir = $current_root_dir . 'hires/';
-
+// for future expansion...
 $base_thumbs_image_dir = $current_root_dir . 'thumbs/';
 $base_thumbs96_image_dir = $current_root_dir . 'thumbs96/';
 
 // this cookie file is abnormally important to the script working consistently so lets baby the hell out of it
 //$cookie_fullpathandname = $current_root_dir . 'cookie.txt';
 //echo "RETS_UPDATE_IMAGES_MRTU:  cookie file: $cookie_fullpathandname\n\n";
-
-// set this to true to force image download from links (backdoor)
-$forceDl = false;
-
-// set this to true to force HiRes image download from links (backdoor)  
-// NOT USED YET - marke
-$hiResForceDl = false;
 
 // counter to let us know how much overall our compression is working
 $diskspace_saved=0;
@@ -219,16 +212,19 @@ function begin_image_update($rets_object, $rets_name, $rets_config) {
 function get_images($listing_id, $photo_count, $rets_key, $rets_object, $r, $rets_config): bool
 {
 
-    global $base_photo_image_dir, $base_hires_image_dir, $base_photo_jpeg_dir, $hiRes;
+    // used for image compression optimization once upon a time..
     global $diskspace_saved;
     global $jpeg_compress;
+
+    //  todo: set from config files
+    global $base_image_dir;
     global $image_resolution_setting,$irs_index,$irs_images_or_links;
 
     $current_image_reso = $image_resolution_setting[$irs_index];
 
     // Image Directory
     /* $dir = $base_image.$rets_config['image_directory'].$listing_id.'/'; */
-    $dir = $base_hires_image_dir;
+    $dir = $base_image_dir[$irs_index];
 
     // Check for image and create directory if needed
     if (!file_exists($dir)) {
@@ -236,7 +232,7 @@ function get_images($listing_id, $photo_count, $rets_key, $rets_object, $r, $ret
         echo "Creating DIR $dir " . PHP_EOL;
 
         if (!mkdir($dir, 0755, true)) {
-            throw new Exception("easy_rets_images.php -] Fatal Error::Cannot Create Directory [ $dir ]...terminating.");
+            throw new Exception("easy_rets_images.php -] Fatal Error::Cannot Create Directory [ $dir ]...check permissions...terminating.");
         } else {
             @exec("chmod 755 $dir");
             echo "Successfully created [ $dir ]" . PHP_EOL;
@@ -321,9 +317,16 @@ function get_images($listing_id, $photo_count, $rets_key, $rets_object, $r, $ret
                 $raw_fn = $listing_id . '-' . $photo->getObjectId() . '.jpg';
                 $pic_fn = $dir . $raw_fn;
 
-                $image_res = imagecreatefromstring($photo->getContent());
-                $width = imagesx($image_res);
-                $height = imagesy($image_res);
+                // added sanity check for photo data...
+                if ($photo->getContent()) {
+                    $image_res = imagecreatefromstring($photo->getContent());
+                    $width = imagesx($image_res);
+                    $height = imagesy($image_res);
+                }
+                else {
+                    echo "RETS ERROR - no image data available for downloaded RETS image [ $pic_fn ]...skipping\n";
+                    continue;
+                }
 
             }
 
