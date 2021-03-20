@@ -209,151 +209,6 @@ class basic_image
     // Returns a SimpleImage object.
     //
 
-    public static function lightenColor($color, $amount)
-    {
-        return self::adjustColor($color, $amount, $amount, $amount, 0);
-    }
-
-    //////////////////////////////////////////////////////////////////////////////////////////////////
-    // Savers
-    //////////////////////////////////////////////////////////////////////////////////////////////////
-
-    //
-    // Generates an image.
-    //
-    //  $mimeType (string) - The image format to output as a mime type (defaults to the original mime
-    //    type).
-    //  $quality (int) - Image quality as a percentage (default 100).
-    //
-    // Returns an array containing the image data and mime type.
-    //
-
-    public function __destruct()
-    {
-        if ($this->image !== null && get_resource_type($this->image) === 'gd') {
-            imagedestroy($this->image);
-        }
-    }
-
-    //
-    // Generates a data URI.
-    //
-    //  $mimeType (string) - The image format to output as a mime type (defaults to the original mime
-    //    type).
-    //  $quality (int) - Image quality as a percentage (default 100).
-    //
-    // Returns a string containing a data URI.
-    //
-
-    public function fromNew($width, $height, $color = 'transparent')
-    {
-        $this->image = imagecreatetruecolor($width, $height);
-
-        // Use PNG for dynamically created images because it's lossless and supports transparency
-        $this->mimeType = 'image/png';
-
-        // Fill the image with color
-        $this->fill($color);
-
-        return $this;
-    }
-
-    //
-    // Forces the image to be downloaded to the clients machine. Must be called before any output is
-    // sent to the screen.
-    //
-    //  $filename* (string) - The filename (without path) to send to the client (e.g. 'image.jpeg').
-    //  $mimeType (string) - The image format to output as a mime type (defaults to the original mime
-    //    type).
-    //  $quality (int) - Image quality as a percentage (default 100).
-    //
-
-    public function fill($color)
-    {
-        // Draw a filled rectangle over the entire image
-        $this->rectangle(0, 0, $this->getWidth(), $this->getHeight(), 'white', 'filled');
-
-        // Now flood it with the appropriate color
-        $color = $this->allocateColor($color);
-        imagefill($this->image, 0, 0, $color);
-
-        return $this;
-    }
-
-    //
-    // Writes the image to a file.
-    //
-    //  $mimeType (string) - The image format to output as a mime type (defaults to the original mime
-    //    type).
-    //  $quality (int) - Image quality as a percentage (default 100).
-    //
-    // Returns a SimpleImage object.
-    //
-
-    public function rectangle($x1, $y1, $x2, $y2, $color, $thickness = 1)
-    {
-        // Allocate the color
-        $color = $this->allocateColor($color);
-
-        // Draw a rectangle
-        if ($thickness === 'filled') {
-            imagesetthickness($this->image, 1);
-            imagefilledrectangle($this->image, $x1, $y1, $x2, $y2, $color);
-        } else {
-            imagesetthickness($this->image, $thickness);
-            imagerectangle($this->image, $x1, $y1, $x2, $y2, $color);
-        }
-
-        return $this;
-    }
-
-    //
-    // Outputs the image to the screen. Must be called before any output is sent to the screen.
-    //
-    //  $mimeType (string) - The image format to output as a mime type (defaults to the original mime
-    //    type).
-    //  $quality (int) - Image quality as a percentage (default 100).
-    //
-    // Returns a SimpleImage object.
-    //
-
-    private function allocateColor($color)
-    {
-        $color = self::normalizeColor($color);
-
-        // Was this color already allocated?
-        $index = imagecolorexactalpha(
-            $this->image,
-            $color['red'],
-            $color['green'],
-            $color['blue'],
-            127 - ($color['alpha'] * 127)
-        );
-        if ($index > -1) {
-            // Yes, return this color index
-            return $index;
-        }
-
-        // Allocate a new color index
-        return imagecolorallocatealpha(
-            $this->image,
-            $color['red'],
-            $color['green'],
-            $color['blue'],
-            127 - ($color['alpha'] * 127)
-        );
-    }
-
-    //
-    // Generates an image string.
-    //
-    //  $mimeType (string) - The image format to output as a mime type (defaults to the original mime
-    //    type).
-    //  $quality (int) - Image quality as a percentage (default 100).
-    //
-    // Returns a SimpleImage object.
-    //
-
     public static function normalizeColor($color)
     {
         // 140 CSS color names and hex values
@@ -479,6 +334,131 @@ class basic_image
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////////
+    // Savers
+    //////////////////////////////////////////////////////////////////////////////////////////////////
+
+    //
+    // Generates an image.
+    //
+    //  $mimeType (string) - The image format to output as a mime type (defaults to the original mime
+    //    type).
+    //  $quality (int) - Image quality as a percentage (default 100).
+    //
+    // Returns an array containing the image data and mime type.
+    //
+
+    private static function keepWithin($value, $min, $max)
+    {
+        if ($value < $min) return $min;
+        if ($value > $max) return $max;
+        return $value;
+    }
+
+    //
+    // Generates a data URI.
+    //
+    //  $mimeType (string) - The image format to output as a mime type (defaults to the original mime
+    //    type).
+    //  $quality (int) - Image quality as a percentage (default 100).
+    //
+    // Returns a string containing a data URI.
+    //
+
+    public static function lightenColor($color, $amount)
+    {
+        return self::adjustColor($color, $amount, $amount, $amount, 0);
+    }
+
+    //
+    // Forces the image to be downloaded to the clients machine. Must be called before any output is
+    // sent to the screen.
+    //
+    //  $filename* (string) - The filename (without path) to send to the client (e.g. 'image.jpeg').
+    //  $mimeType (string) - The image format to output as a mime type (defaults to the original mime
+    //    type).
+    //  $quality (int) - Image quality as a percentage (default 100).
+    //
+
+    public function __destruct()
+    {
+        if ($this->image !== null && get_resource_type($this->image) === 'gd') {
+            imagedestroy($this->image);
+        }
+    }
+
+    //
+    // Writes the image to a file.
+    //
+    //  $mimeType (string) - The image format to output as a mime type (defaults to the original mime
+    //    type).
+    //  $quality (int) - Image quality as a percentage (default 100).
+    //
+    // Returns a SimpleImage object.
+    //
+
+    public function fromNew($width, $height, $color = 'transparent')
+    {
+        $this->image = imagecreatetruecolor($width, $height);
+
+        // Use PNG for dynamically created images because it's lossless and supports transparency
+        $this->mimeType = 'image/png';
+
+        // Fill the image with color
+        $this->fill($color);
+
+        return $this;
+    }
+
+    //
+    // Outputs the image to the screen. Must be called before any output is sent to the screen.
+    //
+    //  $mimeType (string) - The image format to output as a mime type (defaults to the original mime
+    //    type).
+    //  $quality (int) - Image quality as a percentage (default 100).
+    //
+    // Returns a SimpleImage object.
+    //
+
+    public function fill($color)
+    {
+        // Draw a filled rectangle over the entire image
+        $this->rectangle(0, 0, $this->getWidth(), $this->getHeight(), 'white', 'filled');
+
+        // Now flood it with the appropriate color
+        $color = $this->allocateColor($color);
+        imagefill($this->image, 0, 0, $color);
+
+        return $this;
+    }
+
+    //
+    // Generates an image string.
+    //
+    //  $mimeType (string) - The image format to output as a mime type (defaults to the original mime
+    //    type).
+    //  $quality (int) - Image quality as a percentage (default 100).
+    //
+    // Returns a SimpleImage object.
+    //
+
+    public function rectangle($x1, $y1, $x2, $y2, $color, $thickness = 1)
+    {
+        // Allocate the color
+        $color = $this->allocateColor($color);
+
+        // Draw a rectangle
+        if ($thickness === 'filled') {
+            imagesetthickness($this->image, 1);
+            imagefilledrectangle($this->image, $x1, $y1, $x2, $y2, $color);
+        } else {
+            imagesetthickness($this->image, $thickness);
+            imagerectangle($this->image, $x1, $y1, $x2, $y2, $color);
+        }
+
+        return $this;
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////
     // Utilities
     //////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -492,11 +472,31 @@ class basic_image
     // Returns an int|float value.
     //
 
-    private static function keepWithin($value, $min, $max)
+    private function allocateColor($color)
     {
-        if ($value < $min) return $min;
-        if ($value > $max) return $max;
-        return $value;
+        $color = self::normalizeColor($color);
+
+        // Was this color already allocated?
+        $index = imagecolorexactalpha(
+            $this->image,
+            $color['red'],
+            $color['green'],
+            $color['blue'],
+            127 - ($color['alpha'] * 127)
+        );
+        if ($index > -1) {
+            // Yes, return this color index
+            return $index;
+        }
+
+        // Allocate a new color index
+        return imagecolorallocatealpha(
+            $this->image,
+            $color['red'],
+            $color['green'],
+            $color['blue'],
+            127 - ($color['alpha'] * 127)
+        );
     }
 
     //
